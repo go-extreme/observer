@@ -139,3 +139,165 @@ func main() {
 }
 
 ```
+
+
+## 🧩 Advanced Example
+
+```go
+package main
+
+import (
+	"errors"
+	"fmt"
+	"sync"
+
+	"github.com/go-extreme/observer"
+)
+
+// User entity
+type User struct {
+	ID   int
+	Name string
+}
+
+// Observer for User events
+type UserObserver struct{}
+
+func (UserObserver) Created(u User) {
+	fmt.Printf("[Observer] User '%s' created\n", u.Name)
+}
+
+func (UserObserver) Updated(u User) {
+	fmt.Printf("[Observer] User '%s' updated\n", u.Name)
+}
+
+func (UserObserver) BeforeDelete(u User) {
+	fmt.Printf("[Observer] User '%s' will be deleted\n", u.Name)
+}
+
+func (UserObserver) Deleted(u User) {
+	fmt.Printf("[Observer] User '%s' deleted\n", u.Name)
+}
+
+// UserRepository interface
+type UserRepository interface {
+	Create(user User) (User, error)
+	Update(user User) (User, error)
+	Delete(id int) error
+	GetByID(id int) (User, error)
+}
+
+// InMemoryUserRepository implements UserRepository
+type InMemoryUserRepository struct {
+	mu     sync.Mutex
+	data   map[int]User
+	lastID int
+}
+
+func NewInMemoryUserRepository() *InMemoryUserRepository {
+	return &InMemoryUserRepository{
+		data: make(map[int]User),
+	}
+}
+
+func (r *InMemoryUserRepository) Create(user User) (User, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.lastID++
+	user.ID = r.lastID
+	r.data[user.ID] = user
+	return user, nil
+}
+
+func (r *InMemoryUserRepository) Update(user User) (User, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.data[user.ID]; !exists {
+		return User{}, errors.New("user not found")
+	}
+	r.data[user.ID] = user
+	return user, nil
+}
+
+func (r *InMemoryUserRepository) Delete(id int) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, exists := r.data[id]; !exists {
+		return errors.New("user not found")
+	}
+	delete(r.data, id)
+	return nil
+}
+
+func (r *InMemoryUserRepository) GetByID(id int) (User, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	user, exists := r.data[id]
+	if !exists {
+		return User{}, errors.New("user not found")
+	}
+	return user, nil
+}
+
+// UserService - handles business logic & triggers observer events
+type UserService struct {
+	repo UserRepository
+}
+
+func NewUserService(repo UserRepository) *UserService {
+	return &UserService{repo: repo}
+}
+
+func (s *UserService) CreateUser(name string) (User, error) {
+	user, err := s.repo.Create(User{Name: name})
+	if err != nil {
+		return User{}, err
+	}
+	observer.Notify(observer.EventCreated, user)
+	return user, nil
+}
+
+func (s *UserService) UpdateUser(user User) (User, error) {
+	updated, err := s.repo.Update(user)
+	if err != nil {
+		return User{}, err
+	}
+	observer.Notify(observer.EventUpdated, updated)
+	return updated, nil
+}
+
+func (s *UserService) DeleteUser(id int) error {
+	user, err := s.repo.GetByID(id)
+	if err != nil {
+		return err
+	}
+	observer.Notify(observer.EventBeforeDelete, user)
+	err = s.repo.Delete(id)
+	if err != nil {
+		return err
+	}
+	observer.Notify(observer.EventDeleted, user)
+	return nil
+}
+
+func main() {
+	observer.SetDebug(true)
+
+	repo := NewInMemoryUserRepository()
+	service := NewUserService(repo)
+
+	// Attach observer for User
+	observer.Attach(User{}, UserObserver{})
+
+	// Create user
+	user, _ := service.CreateUser("Alice")
+
+	// Update user
+	user.Name = "Alice Smith"
+	service.UpdateUser(user)
+
+	// Delete user
+	service.DeleteUser(user.ID)
+}
+
+```
