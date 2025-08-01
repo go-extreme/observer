@@ -2,7 +2,7 @@ package observer
 
 import (
 	"fmt"
-	"reflect"1
+	"reflect"
 	"sync"
 )
 
