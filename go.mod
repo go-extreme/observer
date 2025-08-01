@@ -1,4 +1,4 @@
 module github.com/go-extreme/observer
 
-go 1.18
+go 1.20
 
