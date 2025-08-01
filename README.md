@@ -20,9 +20,9 @@ Observer helps you build **event-driven** and **decoupled** systems by letting o
 ```bash
 go get github.com/go-extreme/observer
 
+```
 
-
-## Example Usage
+## 🧩  Example Usage
 
 ```go
 package main
@@ -70,3 +70,4 @@ func main() {
 	// Asynchronous notification - returns immediately, handlers run in goroutines
 	observer.NotifyAsync(observer.EventBeforeDelete, user)
 }
+```
