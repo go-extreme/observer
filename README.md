@@ -71,3 +71,71 @@ func main() {
 	observer.NotifyAsync(observer.EventBeforeDelete, user)
 }
 ```
+
+
+## 🧩 HTTP Server Example
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+
+	"github.com/go-extreme/observer"
+)
+
+type User struct {
+	Name string `json:"name"`
+}
+
+type UserObserver struct{}
+
+func (UserObserver) Created(u User) {
+	fmt.Printf("[Created] User '%s' was created\n", u.Name)
+}
+
+func (UserObserver) BeforeDelete(u User) {
+	fmt.Printf("[BeforeDelete] User '%s' will be deleted\n", u.Name)
+}
+
+func createUserHandler(w http.ResponseWriter, r *http.Request) {
+	var user User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	observer.Notify(observer.EventCreated, user)
+
+	fmt.Fprintf(w, "User '%s' created\n", user.Name)
+}
+
+func deleteUserHandler(w http.ResponseWriter, r *http.Request) {
+	var user User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	observer.NotifyAsync(observer.EventBeforeDelete, user)
+
+	fmt.Fprintf(w, "User '%s' deleted\n", user.Name)
+}
+
+func main() {
+	observer.SetDebug(true)
+
+	// Attach observer once globally before handling requests
+	observer.Attach(User{}, UserObserver{})
+
+	http.HandleFunc("/user/create", createUserHandler)
+	http.HandleFunc("/user/delete", deleteUserHandler)
+
+	fmt.Println("Starting server on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+```
