@@ -301,3 +301,57 @@ func main() {
 }
 
 ```
+
+
+## Tips 
+# Create a registrar or configuration file and register all observers within it:
+
+```go
+
+
+
+package yourpackage
+
+import (
+	"github.com/go-extreme/observer"
+)
+
+// UserObserver example
+type UserObserver struct{}
+
+func (UserObserver) Created(u User) {
+	// your logic
+}
+
+// OrderObserver example
+type OrderObserver struct{}
+
+func (OrderObserver) Created(o Order) {
+	// your logic
+}
+
+func init() {
+       observer.SetDebug(true)
+	// Attach all observers once here
+	observer.Attach(User{}, UserObserver{})
+	observer.Attach(Order{}, OrderObserver{})
+}
+
+
+package main
+
+import (
+	_ "yourmodule/yourpackage" // import registrar to run init()
+	"github.com/go-extreme/observer"
+)
+
+func main() {
+	
+
+	// Now all observers are already attached
+	// You don't need to attach them here again
+
+	// Your app logic...
+}
+
+```
